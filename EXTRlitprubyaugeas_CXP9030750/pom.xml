@@ -1,0 +1,181 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.ericsson.nms.litp.3pps</groupId>
+    <artifactId>EXTRlitprubyaugeas_CXP9030750</artifactId>
+    <packaging>rpm</packaging>
+    <name>[${project.parent.artifactId}] RPM module</name>
+    <description>LITP Ruby Augeas 3PP</description>
+
+    <parent>
+        <groupId>com.ericsson.nms.litp.3pps</groupId>
+        <artifactId>EXTRlitprubyaugeas</artifactId>
+        <version>2.2.4-SNAPSHOT</version>
+    </parent>
+    <properties>
+    <!-- publishes the rpm module to the ci portal -->
+        <publish_artifact>true</publish_artifact>
+        <packaging.type>rpm</packaging.type>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.5</version>
+                <executions>
+                    <execution>
+                        <id>unpack_ruby-augeas</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.github</groupId>
+                                    <artifactId>ruby-augeas</artifactId>
+                                    <version>${ruby-augeas.version}</version>
+                                    <type>tar.gz</type>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/src/</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <executions>
+                    <execution>
+                        <configuration>
+                           <environmentVariables>
+                                <PKG_CONFIG_PATH>
+                                   ${augeas-devel}:${libxml2-devel}
+                                </PKG_CONFIG_PATH>
+                            </environmentVariables>
+                            <executable>ruby</executable>
+                            <workingDirectory>${project.build.directory}/src/ruby-augeas-release-${ruby-augeas.version}/ext/augeas/</workingDirectory>
+                            <arguments>
+                                <argument>extconf.rb</argument>
+                            </arguments>
+                        </configuration>
+                        <id>configure_ruby-augeas</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <configuration>
+                            <executable>make</executable>
+                            <workingDirectory>${project.build.directory}/src/ruby-augeas-release-${ruby-augeas.version}/ext/augeas/</workingDirectory>
+                        </configuration>
+                        <id>compile_ruby-augeas</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>rpm-maven-plugin</artifactId>
+                <version>2.1-alpha-1</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <needarch>x86_64</needarch>
+                    <group>Development/Languages</group>
+                    <summary>Ruby bindings for Augeas</summary>
+                    <description>
+ruby-augeas ${ruby-augeas.version} repackaged by Ericsson.
+Ruby bindings for Augeas
+                    </description>
+                    <requires>
+                        <require>libaugeas.so.0()(64bit)</require>
+                        <require>libaugeas.so.0(AUGEAS_0.1.0)(64bit)</require>
+                        <require>libaugeas.so.0(AUGEAS_0.8.0)(64bit)</require>
+                        <require>libc.so.6()(64bit)</require>
+                        <require>libc.so.6(GLIBC_2.2.5)(64bit)</require>
+                        <require>libcrypt.so.1()(64bit)</require>
+                        <require>libdl.so.2()(64bit)</require>
+                        <require>libm.so.6()(64bit)</require>
+                        <require>libpthread.so.0()(64bit)</require>
+                        <require>librt.so.1()(64bit)</require>
+                        <require>libruby.so.2.0()(64bit)</require>
+                        <require>augeas-libs &gt;= 0.5.1</require>
+                        <require>rpmlib(CompressedFileNames) &lt;= 3.0.4-1</require>
+                        <require>rpmlib(FileDigests) &lt;= 4.6.0-1</require>
+                        <require>rpmlib(PayloadFilesHavePrefix) &lt;= 4.0-1</require>
+                        <require>rpmlib(VersionedDependencies) &lt;= 3.0.3-1</require>
+                        <require>rpmlib(PayloadIsXz) &lt;= 5.2-1</require>
+                        <require>ruby(runtime_executable) = 2.0.0</require>
+                        <require>rtld(GNU_HASH)</require>
+                    </requires>
+                    <provides>
+                    	<provide>ruby(augeas) = ${ruby-augeas.version}</provide>
+                    	<provide>_augeas.so()(64bit)</provide>
+                    	<provide>ruby-augeas = ${ruby-augeas.version}</provide>
+                    	<provide>ruby-augeas(x86-64) = ${ruby-augeas.version}</provide>
+                    </provides>
+		    <mappings>
+                        <mapping>
+                            <directory>/usr/lib64/ruby/vendor_ruby/</directory>
+                            <configuration>false</configuration>
+                            <sources>
+                                <source>
+                                    <location>target/src/ruby-augeas-release-${ruby-augeas.version}/ext/augeas/</location>
+                                    <includes>
+                                        <include>_augeas.so</include>
+                                    </includes>
+                                </source>
+                                <!--
+                                <softlinkSource>
+                                    <destination>shadow.so</destination>
+                                    <location>shadow.so.....</location>
+                                </softlinkSource>
+                                -->
+                            </sources>
+                        </mapping>
+                        <mapping>
+                            <directory>/usr/share/ruby/</directory>
+                            <configuration>false</configuration>
+                            <sources>
+                                <source>
+                                    <location>target/src/ruby-augeas-release-${ruby-augeas.version}/lib/</location>
+                                    <includes>
+                                        <include>augeas.rb</include>
+                                    </includes>
+                                </source>
+                                <!--
+                                <softlinkSource>
+                                    <destination>shadow.so</destination>
+                                    <location>shadow.so.....</location>
+                                </softlinkSource>
+                                -->
+                            </sources>
+                        </mapping>
+
+                        <mapping>
+                            <directory>/usr/share/doc/ruby-augeas-${ruby-augeas.version}</directory>
+                            <configuration>false</configuration>
+                            <sources>
+                                <source>
+                                    <location>target/src/ruby-augeas-release-${ruby-augeas.version}/</location>
+                                    <includes>
+                                        <include>COPYING</include>
+                                        <include>NEWS</include>
+                                        <include>README.rdoc</include>
+                                    </includes>
+                                </source>
+                            </sources>
+                        </mapping>
+                    </mappings>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
